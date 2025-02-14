@@ -11,12 +11,24 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) { }
 
-  async login(user: User) {
-    const payload = { email: user.email, sub: user.id };
+  async login(email: string, password: string) {
+    const foundUser = await this.userService.findOneByEmail(email);
+
+    if (!foundUser) {
+      throw new Error('Usuário não encontrado');
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, foundUser.password);
+
+    if (!isPasswordValid) {
+      throw new Error('Senha inválida');
+    }
+
+    const payload = { email: foundUser.email, sub: foundUser.id };
 
     return {
       access_token: this.jwtService.sign(payload),
-    }
+    };
   }
 
   async register(name: string, email: string, password: string) {
@@ -26,7 +38,7 @@ export class AuthService {
       email,
       password: hashedPassword
     });
-    return this.login(newUser);
+    return this.login(newUser.email, newUser.password);
   }
 
   async validateUser(email: string, password: string) {

@@ -9,8 +9,8 @@ export class AuthController {
 
   //  Login route
   @Post('login')
-  async login(@Body() user: User) {
-    return this.authService.login(user);
+  async login(@Body() body: { email: string; password: string }) {
+    return this.authService.login(body.email, body.password);
   }
 
   // Register Route
