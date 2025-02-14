@@ -18,7 +18,7 @@ export class Task {
   @Column()
   description: string;
 
-  @Column({ default: false })
+  @Column()
   status: string;
 
   @ManyToOne(() => User, (user) => user.tasks, { eager: true })

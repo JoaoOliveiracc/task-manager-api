@@ -1,15 +1,17 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Task } from './entities/task.entity';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
+import Redis from 'ioredis';
 
 @Injectable()
 export class TasksService {
   constructor(
     @InjectRepository(Task)
     private tasksRepository: Repository<Task>,
+    @Inject('REDIS_CLIENT') private readonly redis: Redis,
   ) { }
 
   async create(createTaskDto: CreateTaskDto): Promise<Task> {
@@ -17,8 +19,27 @@ export class TasksService {
     return await this.tasksRepository.save(task);
   }
 
-  async findAll(): Promise<Task[]> {
-    return await this.tasksRepository.find();
+  async findAll(page: number = 1, pageSize: number = 10): Promise<Task[]> {
+    const skip = (page - 1) * pageSize;
+    const take = pageSize;
+
+    const cacheKey = `tasks:all:${page}:${pageSize}`;
+
+    const cachedTasks = await this.redis.get(cacheKey);
+
+    if (cachedTasks) {
+      return JSON.parse(cachedTasks);
+    }
+
+    const [tasks, total] = await this.tasksRepository.findAndCount({
+      skip,
+      take,
+    });
+
+    await this.redis.set(cacheKey, JSON.stringify(tasks), 'EX', 3600);
+
+    console.log('Retornando dados do banco de dados');
+    return tasks;
   }
 
   async findOne(id: number): Promise<Task> {
